@@ -4,7 +4,7 @@ import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, compute;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as imglib;
@@ -15,10 +15,8 @@ import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 // ============================================================
 //  الإعدادات العامة
 // ============================================================
-/// رابط نسخة الويب العامة (اللي بتفتح عند المستلم)
 const String kBaseUrl = 'https://ysf3laa.github.io/Create-card/';
 
-/// بيانات مشروع Firebase بتاعك (Birthday card)
 const FirebaseOptions kFirebaseOptions = FirebaseOptions(
   apiKey: 'AIzaSyClMLZwXm2sHhVA6QIF_Qq_r6wMkWoZMoc',
   appId: '1:183579389817:web:afb7f82b6c70a1ed1149a8',
@@ -57,6 +55,7 @@ Uint8List? dataUrlToBytes(String? dataUrl) {
   }
 }
 
+/// ترجع Widget أو null لو مفيش صورة
 Widget? dataImage(String? dataUrl, {BoxFit fit = BoxFit.cover}) {
   final b = dataUrlToBytes(dataUrl);
   if (b == null) return null;
@@ -122,10 +121,9 @@ class _CreatorScreenState extends State<CreatorScreen> {
     super.dispose();
   }
 
-  void _snack(String msg) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(msg)));
+  void _snack(String msg) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
-  // ---------- ضغط الصورة وتحويلها Base64 ----------
   static String? _compress(Uint8List bytes) {
     final img = imglib.decodeImage(bytes);
     if (img == null) return null;
@@ -171,7 +169,6 @@ class _CreatorScreenState extends State<CreatorScreen> {
     }
   }
 
-  // ---------- الحفظ في Firestore ----------
   Future<void> _generate() async {
     final name = _name.text.trim();
     final message = _message.text.trim();
@@ -214,7 +211,6 @@ class _CreatorScreenState extends State<CreatorScreen> {
     }
   }
 
-  // ---------- فتح بطاقة بالرابط أو الـ ID ----------
   Future<void> _openById() async {
     final ctrl = TextEditingController();
     final res = await showDialog<String>(
@@ -244,6 +240,7 @@ class _CreatorScreenState extends State<CreatorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final Widget? preview = dataImage(_imageDataUrl, fit: BoxFit.contain);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: kPrimary,
@@ -280,15 +277,14 @@ class _CreatorScreenState extends State<CreatorScreen> {
                 children: [
                   DropdownButtonFormField<String>(
                     initialValue: _template,
-                    decoration: const InputDecoration(
-                        labelText: 'اختر القالب التفاعلي'),
+                    decoration:
+                        const InputDecoration(labelText: 'اختر القالب التفاعلي'),
                     items: const [
                       DropdownMenuItem(
                           value: 'envelope',
                           child: Text('💌 ظرف حب ثلاثي الأبعاد')),
                       DropdownMenuItem(
-                          value: 'musicbox',
-                          child: Text('🎵 صندوق الموسيقى')),
+                          value: 'musicbox', child: Text('🎵 صندوق الموسيقى')),
                       DropdownMenuItem(
                           value: 'polaroid',
                           child: Text('📸 معرض ذكريات بولارويد')),
@@ -315,11 +311,11 @@ class _CreatorScreenState extends State<CreatorScreen> {
                     icon: const Icon(Icons.image),
                     label: const Text('اختيار صورة (اختياري)'),
                   ),
-                  if (_imageDataUrl != null) ...[
+                  if (preview != null) ...[
                     const SizedBox(height: 8),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: dataImage(_imageDataUrl, fit: BoxFit.contain),
+                      child: preview,
                     ),
                   ],
                   if (_template == 'musicbox') ...[
@@ -335,9 +331,7 @@ class _CreatorScreenState extends State<CreatorScreen> {
                     controller: _pin,
                     maxLength: 4,
                     keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly
-                    ],
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     obscureText: true,
                     decoration: const InputDecoration(
                       labelText: 'رمز PIN (اختياري - 4 أرقام)',
@@ -394,11 +388,10 @@ class ShareScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF1F2F6),
-                  border: Border.all(color: kPrimary, style: BorderStyle.solid),
+                  border: Border.all(color: kPrimary),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: SelectableText(link,
-                    style: const TextStyle(fontSize: 13)),
+                child: SelectableText(link, style: const TextStyle(fontSize: 13)),
               ),
               const SizedBox(height: 16),
               FilledButton.icon(
@@ -543,7 +536,6 @@ class _PinScreenState extends State<PinScreen> {
           foregroundColor: Colors.black87,
           shape: const CircleBorder(),
           padding: const EdgeInsets.all(18),
-          elevation: 2,
         ),
         onPressed: onTap,
         child: Text(label, style: const TextStyle(fontSize: 20)),
@@ -601,10 +593,9 @@ class _PinScreenState extends State<PinScreen> {
                 for (var i = 1; i <= 9; i++) _key('$i', () => _enter('$i')),
                 _key('C', () => setState(() => _input = '')),
                 _key('0', () => _enter('0')),
-                _key('⌫', () => setState(
-                    () => _input = _input.isEmpty
-                        ? ''
-                        : _input.substring(0, _input.length - 1))),
+                _key('⌫', () => setState(() => _input = _input.isEmpty
+                    ? ''
+                    : _input.substring(0, _input.length - 1))),
               ],
             ),
           ],
@@ -615,7 +606,7 @@ class _PinScreenState extends State<PinScreen> {
 }
 
 // ============================================================
-//  شاشة العرض + القوالب الثلاثة
+//  شاشة العرض + القوالب
 // ============================================================
 class ViewerScreen extends StatelessWidget {
   const ViewerScreen({super.key, required this.data});
@@ -638,9 +629,7 @@ class ViewerScreen extends StatelessWidget {
             'إلى: ${data['name'] ?? ''} ❤️',
             textAlign: TextAlign.center,
             style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: kPrimary),
+                fontSize: 22, fontWeight: FontWeight.bold, color: kPrimary),
           ),
           const SizedBox(height: 16),
           if (template == 'envelope') EnvelopeView(data: data),
@@ -700,19 +689,17 @@ class _EnvelopeViewState extends State<EnvelopeView> {
           color: kPrimaryLight,
           borderRadius: BorderRadius.circular(12),
           boxShadow: const [
-            BoxShadow(color: Colors.black26, blurRadius: 14, offset: Offset(0, 8))
+            BoxShadow(
+                color: Colors.black26, blurRadius: 14, offset: Offset(0, 8))
           ],
         ),
         child: Stack(
           children: [
-            CustomPaint(
-              size: const Size(300, 100),
-              painter: _FlapPainter(kPrimary),
-            ),
-            Center(
+            CustomPaint(size: const Size(300, 100), painter: _FlapPainter(kPrimary)),
+            const Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
+                children: [
                   Text('💌', style: TextStyle(fontSize: 44)),
                   Text('اضغط للفتح',
                       style: TextStyle(color: Colors.white, fontSize: 14)),
@@ -723,36 +710,36 @@ class _EnvelopeViewState extends State<EnvelopeView> {
         ),
       );
 
-  Widget _letter() => Container(
-        key: const ValueKey('open'),
-        constraints: const BoxConstraints(maxHeight: 430),
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: const [
-            BoxShadow(color: Colors.black26, blurRadius: 14, offset: Offset(0, 8))
+  Widget _letter() {
+    final Widget? img = dataImage(widget.data['image'] as String?);
+    return Container(
+      key: const ValueKey('open'),
+      constraints: const BoxConstraints(maxHeight: 430),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 14, offset: Offset(0, 8))
+        ],
+      ),
+      child: ListView(
+        shrinkWrap: true,
+        children: [
+          Text(widget.data['message'] ?? '',
+              style: const TextStyle(height: 1.8, fontSize: 16)),
+          if (img != null) ...[
+            const SizedBox(height: 12),
+            ClipRRect(borderRadius: BorderRadius.circular(10), child: img),
           ],
-        ),
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            Text(widget.data['message'] ?? '',
-                style: const TextStyle(height: 1.8, fontSize: 16)),
-            if (dataImage(widget.data['image'] as String?) != null) ...[
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: dataImage(widget.data['image'] as String?),
-              ),
-            ],
-            const SizedBox(height: 10),
-            const Text('اضغط للقفل 🔒',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey, fontSize: 12)),
-          ],
-        ),
-      );
+          const SizedBox(height: 10),
+          const Text('اضغط للقفل 🔒',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, fontSize: 12)),
+        ],
+      ),
+    );
+  }
 }
 
 class _FlapPainter extends CustomPainter {
@@ -804,15 +791,14 @@ class _MusicBoxViewState extends State<MusicBoxView>
   void _toggle() {
     setState(() => _playing = !_playing);
     final ytId = extractYoutubeId(widget.data['youtube'] as String?);
-    if (_playing && ytId != null && _yt == null) {
-      _yt = YoutubePlayerController.fromVideoId(
-        videoId: ytId,
-        autoPlay: true,
-        params: const YoutubePlayerParams(loop: true, showControls: true),
-      );
+    if (_playing) {
       _spin.repeat();
-    } else if (_playing) {
-      _spin.repeat();
+      if (ytId != null && _yt == null) {
+        _yt = YoutubePlayerController.fromVideoId(
+          videoId: ytId,
+          autoPlay: true,
+        );
+      }
     } else {
       _spin.stop();
       _yt?.close();
@@ -822,6 +808,7 @@ class _MusicBoxViewState extends State<MusicBoxView>
 
   @override
   Widget build(BuildContext context) {
+    final Widget? img = dataImage(widget.data['image'] as String?);
     return Column(
       children: [
         GestureDetector(
@@ -840,10 +827,9 @@ class _MusicBoxViewState extends State<MusicBoxView>
                 child: Container(
                   width: 50,
                   height: 50,
-                  decoration: const BoxDecoration(
-                      shape: BoxShape.circle, color: kPrimary),
-                  child: Icon(
-                      _playing ? Icons.pause : Icons.play_arrow,
+                  decoration:
+                      const BoxDecoration(shape: BoxShape.circle, color: kPrimary),
+                  child: Icon(_playing ? Icons.pause : Icons.play_arrow,
                       color: Colors.white),
                 ),
               ),
@@ -859,20 +845,15 @@ class _MusicBoxViewState extends State<MusicBoxView>
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
-              BoxShadow(color: Colors.black12, blurRadius: 10)
-            ],
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
           ),
           child: Column(
             children: [
               Text(widget.data['message'] ?? '',
                   style: const TextStyle(height: 1.8, fontSize: 16)),
-              if (dataImage(widget.data['image'] as String?) != null) ...[
+              if (img != null) ...[
                 const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: dataImage(widget.data['image'] as String?),
-                ),
+                ClipRRect(borderRadius: BorderRadius.circular(10), child: img),
               ],
             ],
           ),
@@ -880,7 +861,8 @@ class _MusicBoxViewState extends State<MusicBoxView>
         if (_yt != null)
           Padding(
             padding: const EdgeInsets.only(top: 16),
-            child: SizedBox(height: 220, child: YoutubePlayer(controller: _yt!)),
+            child:
+                SizedBox(height: 220, child: YoutubePlayer(controller: _yt!)),
           ),
       ],
     );
@@ -940,8 +922,7 @@ class PolaroidView extends StatelessWidget {
                         Text(captions[i],
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontFamily: 'monospace', fontSize: 13)),
+                            style: const TextStyle(fontSize: 13)),
                       ],
                     ),
                   ),
@@ -964,8 +945,7 @@ class PolaroidView extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: dataImage(data['image'] as String?,
-                        fit: BoxFit.contain) ??
+                child: dataImage(data['image'] as String?, fit: BoxFit.contain) ??
                     const SizedBox.shrink(),
               ),
               const SizedBox(height: 10),
